@@ -1,577 +1,226 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
+import Link from "next/link"
 import {
+  Youtube,
   Download,
-  Terminal,
+  Loader2,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
+  XCircle,
   Music,
   Monitor,
-  Palette,
-  Loader2,
-  FileCode,
-  Github,
-  Youtube,
-  Headphones
+  HelpCircle,
+  AlertCircle,
+  Cookie,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Info,
+  AlertTriangle,
+  Copy,
+  Check
 } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Progress } from "@/components/ui/progress"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
-// Python code content - full implementation
-const pythonCode = `#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-================================================================================
-    CONVERSOR DE VÍDEOS DO YOUTUBE PARA MP3
-================================================================================
-
-    Aplicativo desktop simples para converter vídeos do YouTube em arquivos MP3.
-    Desenvolvido com Python e Tkinter.
-
-    DEPENDÊNCIAS NECESSÁRIAS:
-    -------------------------
-    1. Python 3.x instalado (https://www.python.org/downloads/)
-    
-    2. yt-dlp - Instale com o comando:
-       pip install yt-dlp
-       
-    3. FFmpeg - Necessário para conversão de áudio:
-       - Windows: Baixe de https://ffmpeg.org/download.html e adicione ao PATH
-       - Linux: sudo apt install ffmpeg
-       - Mac: brew install ffmpeg
-
-    COMO EXECUTAR:
-    --------------
-    python youtube_to_mp3_converter.py
-
-    AUTOR: Gerado automaticamente
-    VERSÃO: 1.0.0
-================================================================================
-"""
-
-import tkinter as tk
-from tkinter import filedialog, messagebox
-import subprocess
-import threading
-import os
-import shutil
-import re
-
-
-class YouTubeToMP3Converter:
-    """
-    Classe principal do conversor de YouTube para MP3.
-    Gerencia a interface gráfica e o processo de download/conversão.
-    """
-    
-    def __init__(self, root):
-        """Inicializa a aplicação com a janela principal."""
-        self.root = root
-        self.is_downloading = False
-        
-        # Configuração da janela
-        self.setup_window()
-        
-        # Criação dos widgets
-        self.create_widgets()
-        
-    def setup_window(self):
-        """Configura as propriedades da janela principal."""
-        self.root.title("🎵 Conversor YouTube para MP3")
-        self.root.geometry("550x280")
-        self.root.resizable(False, False)
-        
-        # Centralizar janela na tela
-        self.root.update_idletasks()
-        width = self.root.winfo_width()
-        height = self.root.winfo_height()
-        x = (self.root.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.root.winfo_screenheight() // 2) - (height // 2)
-        self.root.geometry(f'{width}x{height}+{x}+{y}')
-        
-        # Cores do tema escuro
-        self.bg_color = "#1e1e1e"
-        self.fg_color = "#ffffff"
-        self.entry_bg = "#2d2d2d"
-        self.button_bg = "#28a745"
-        self.button_hover = "#218838"
-        self.status_fg = "#888888"
-        self.accent_color = "#ff6b6b"
-        
-        self.root.configure(bg=self.bg_color)
-        
-    def create_widgets(self):
-        """Cria todos os widgets da interface."""
-        
-        # Frame principal
-        main_frame = tk.Frame(self.root, bg=self.bg_color, padx=30, pady=20)
-        main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Título
-        title_label = tk.Label(
-            main_frame,
-            text="🎵 Conversor YouTube para MP3",
-            font=("Segoe UI", 16, "bold"),
-            bg=self.bg_color,
-            fg=self.fg_color
-        )
-        title_label.pack(pady=(0, 20))
-        
-        # Label para URL
-        url_label = tk.Label(
-            main_frame,
-            text="Cole a URL do YouTube:",
-            font=("Segoe UI", 10),
-            bg=self.bg_color,
-            fg=self.fg_color
-        )
-        url_label.pack(anchor=tk.W)
-        
-        # Campo de entrada para URL
-        self.url_entry = tk.Entry(
-            main_frame,
-            font=("Segoe UI", 10),
-            bg=self.entry_bg,
-            fg=self.fg_color,
-            insertbackground=self.fg_color,
-            relief=tk.FLAT,
-            highlightthickness=1,
-            highlightbackground="#444444",
-            highlightcolor=self.button_bg
-        )
-        self.url_entry.pack(fill=tk.X, pady=(5, 15), ipady=8)
-        self.url_entry.bind('<Return>', lambda e: self.iniciar_download())
-        
-        # Frame para botão
-        button_frame = tk.Frame(main_frame, bg=self.bg_color)
-        button_frame.pack(fill=tk.X, pady=10)
-        
-        # Botão de download
-        self.download_btn = tk.Button(
-            button_frame,
-            text="⬇️ Baixar MP3",
-            font=("Segoe UI", 11, "bold"),
-            bg=self.button_bg,
-            fg=self.fg_color,
-            activebackground=self.button_hover,
-            activeforeground=self.fg_color,
-            relief=tk.FLAT,
-            cursor="hand2",
-            command=self.iniciar_download
-        )
-        self.download_btn.pack(fill=tk.X, ipady=10)
-        
-        # Efeitos de hover no botão
-        self.download_btn.bind('<Enter>', self.on_button_hover)
-        self.download_btn.bind('<Leave>', self.on_button_leave)
-        
-        # Área de status
-        self.status_label = tk.Label(
-            main_frame,
-            text="Pronto para converter",
-            font=("Segoe UI", 9),
-            bg=self.bg_color,
-            fg=self.status_fg
-        )
-        self.status_label.pack(pady=(15, 0))
-        
-        # Barra de progresso simples (label animado)
-        self.progress_label = tk.Label(
-            main_frame,
-            text="",
-            font=("Segoe UI", 9),
-            bg=self.bg_color,
-            fg=self.button_bg
-        )
-        self.progress_label.pack(pady=(5, 0))
-        
-    def on_button_hover(self, event):
-        """Efeito hover no botão."""
-        if not self.is_downloading:
-            self.download_btn.configure(bg=self.button_hover)
-            
-    def on_button_leave(self, event):
-        """Remove efeito hover do botão."""
-        if not self.is_downloading:
-            self.download_btn.configure(bg=self.button_bg)
-            
-    def atualizar_status(self, texto, cor=None):
-        """
-        Atualiza o texto de status na interface.
-        
-        Args:
-            texto: Texto a ser exibido
-            cor: Cor opcional para o texto (hex string)
-        """
-        self.status_label.configure(text=texto, fg=cor if cor else self.status_fg)
-        self.root.update_idletasks()
-        
-    def atualizar_progresso(self, texto):
-        """Atualiza o texto de progresso."""
-        self.progress_label.configure(text=texto)
-        self.root.update_idletasks()
-        
-    def validar_url_youtube(self, url):
-        """
-        Valida se a URL é uma URL válida do YouTube.
-        
-        Args:
-            url: URL a ser validada
-            
-        Returns:
-            bool: True se a URL é válida, False caso contrário
-        """
-        padroes = [
-            r'^https?://(www\\.)?youtube\\.com/watch\\?v=[\\w-]+',
-            r'^https?://(www\\.)?youtu\\.be/[\\w-]+',
-            r'^https?://(www\\.)?youtube\\.com/shorts/[\\w-]+',
-            r'^https?://(m\\.)?youtube\\.com/watch\\?v=[\\w-]+',
-        ]
-        
-        for padrao in padroes:
-            if re.match(padrao, url):
-                return True
-        return False
-        
-    def verificar_ffmpeg(self):
-        """
-        Verifica se o FFmpeg está instalado e disponível no PATH.
-        
-        Returns:
-            bool: True se FFmpeg está disponível, False caso contrário
-        """
-        return shutil.which('ffmpeg') is not None
-        
-    def verificar_yt_dlp(self):
-        """
-        Verifica se o yt-dlp está instalado.
-        
-        Returns:
-            bool: True se yt-dlp está disponível, False caso contrário
-        """
-        # Tenta encontrar yt-dlp como comando
-        if shutil.which('yt-dlp'):
-            return True
-            
-        # Tenta encontrar como módulo Python
-        try:
-            subprocess.run(
-                ['python', '-m', 'yt_dlp', '--version'],
-                capture_output=True,
-                check=True
-            )
-            return True
-        except:
-            pass
-            
-        return False
-        
-    def iniciar_download(self):
-        """Inicia o processo de download após validações."""
-        if self.is_downloading:
-            messagebox.showwarning("Aguarde", "Já existe um download em andamento.")
-            return
-            
-        url = self.url_entry.get().strip()
-        
-        # Validação 1: URL vazia
-        if not url:
-            messagebox.showerror("Erro", "Por favor, insira uma URL do YouTube.")
-            self.url_entry.focus_set()
-            return
-            
-        # Validação 2: URL do YouTube
-        if not self.validar_url_youtube(url):
-            resposta = messagebox.askyesno(
-                "URL Suspeita",
-                "A URL não parece ser um link válido do YouTube.\\n\\n"
-                "Deseja tentar mesmo assim?"
-            )
-            if not resposta:
-                return
-                
-        # Validação 3: FFmpeg
-        if not self.verificar_ffmpeg():
-            messagebox.showerror(
-                "FFmpeg não encontrado",
-                "O FFmpeg não está instalado ou não está no PATH.\\n\\n"
-                "Por favor, instale o FFmpeg:\\n"
-                "• Windows: Baixe de ffmpeg.org e adicione ao PATH\\n"
-                "• Linux: sudo apt install ffmpeg\\n"
-                "• Mac: brew install ffmpeg"
-            )
-            return
-            
-        # Validação 4: yt-dlp
-        if not self.verificar_yt_dlp():
-            messagebox.showerror(
-                "yt-dlp não encontrado",
-                "O yt-dlp não está instalado.\\n\\n"
-                "Instale com: pip install yt-dlp"
-            )
-            return
-            
-        # Selecionar pasta de destino
-        pasta_destino = filedialog.askdirectory(
-            title="Selecione a pasta para salvar o MP3"
-        )
-        
-        if not pasta_destino:
-            self.atualizar_status("Download cancelado pelo usuário")
-            return
-            
-        # Inicia download em thread separada
-        self.is_downloading = True
-        self.download_btn.configure(
-            text="⏳ Baixando...",
-            bg="#666666",
-            state=tk.DISABLED
-        )
-        
-        thread = threading.Thread(
-            target=self.thread_download,
-            args=(url, pasta_destino),
-            daemon=True
-        )
-        thread.start()
-        
-    def thread_download(self, url, pasta_destino):
-        """
-        Thread separada para executar o download sem travar a interface.
-        
-        Args:
-            url: URL do vídeo do YouTube
-            pasta_destino: Caminho da pasta onde o MP3 será salvo
-        """
-        try:
-            self.atualizar_status("Iniciando download...", "#ffff00")
-            self.atualizar_progresso("Conectando ao YouTube...")
-            
-            # Template de nome do arquivo
-            template_saida = os.path.join(pasta_destino, "%(title)s.%(ext)s")
-            
-            # Comando yt-dlp para baixar e converter para MP3
-            comando = [
-                'yt-dlp',
-                '--extract-audio',
-                '--audio-format', 'mp3',
-                '--audio-quality', '192K',
-                '--no-playlist',
-                '--no-warnings',
-                '--restrict-filenames',
-                '-o', template_saida,
-                url
-            ]
-            
-            # Executa o comando
-            self.atualizar_status("Baixando áudio...", "#00ffff")
-            self.atualizar_progresso("Aguarde, isso pode levar alguns minutos...")
-            
-            processo = subprocess.Popen(
-                comando,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            
-            stdout, stderr = processo.communicate()
-            
-            if processo.returncode == 0:
-                # Sucesso - encontra o arquivo criado
-                self.atualizar_status("Convertendo para MP3...", "#00ff00")
-                self.atualizar_progresso("Quase lá...")
-                
-                # Procura o arquivo MP3 criado
-                arquivos_mp3 = [
-                    f for f in os.listdir(pasta_destino)
-                    if f.endswith('.mp3')
-                ]
-                
-                if arquivos_mp3:
-                    # Pega o arquivo mais recente
-                    arquivo_mais_recente = max(
-                        [os.path.join(pasta_destino, f) for f in arquivos_mp3],
-                        key=os.path.getctime
-                    )
-                    
-                    self.atualizar_status("✅ Download concluído!", "#00ff00")
-                    self.atualizar_progresso("")
-                    
-                    self.root.after(0, lambda: messagebox.showinfo(
-                        "Sucesso!",
-                        f"✅ Download concluído com sucesso!\\n\\n"
-                        f"Arquivo salvo em:\\n{arquivo_mais_recente}"
-                    ))
-                else:
-                    raise Exception("Arquivo MP3 não encontrado após conversão")
-                    
-            else:
-                # Erro no download
-                erro_msg = stderr if stderr else stdout
-                raise Exception(f"Erro no yt-dlp: {erro_msg}")
-                
-        except subprocess.CalledProcessError as e:
-            self.root.after(0, lambda: self.tratar_erro(
-                f"Erro ao executar yt-dlp:\\n{str(e)}"
-            ))
-            
-        except Exception as e:
-            self.root.after(0, lambda: self.tratar_erro(str(e)))
-            
-        finally:
-            # Restaura o estado do botão
-            self.is_downloading = False
-            self.root.after(0, self.restaurar_botao)
-            
-    def tratar_erro(self, mensagem):
-        """
-        Exibe mensagem de erro para o usuário.
-        
-        Args:
-            mensagem: Mensagem de erro a ser exibida
-        """
-        self.atualizar_status("❌ Erro no download", self.accent_color)
-        self.atualizar_progresso("")
-        
-        # Simplifica mensagens de erro comuns
-        if "network" in mensagem.lower() or "connection" in mensagem.lower():
-            mensagem = "Erro de conexão. Verifique sua internet e tente novamente."
-        elif "private" in mensagem.lower():
-            mensagem = "Este vídeo é privado e não pode ser baixado."
-        elif "not available" in mensagem.lower() or "unavailable" in mensagem.lower():
-            mensagem = "Vídeo não disponível. Pode ter sido removido ou está bloqueado."
-        elif "sign in" in mensagem.lower():
-            mensagem = "Este vídeo requer login e não pode ser baixado."
-            
-        messagebox.showerror("Erro no Download", f"❌ {mensagem}")
-        
-    def restaurar_botao(self):
-        """Restaura o botão para o estado normal."""
-        self.download_btn.configure(
-            text="⬇️ Baixar MP3",
-            bg=self.button_bg,
-            state=tk.NORMAL
-        )
-
-
-def main():
-    """Ponto de entrada da aplicação."""
-    root = tk.Tk()
-    app = YouTubeToMP3Converter(root)
-    root.mainloop()
-
-
-if __name__ == "__main__":
-    main()`
-
-const features = [
-  {
-    icon: Monitor,
-    title: "Desktop App",
-    description: "Interface gráfica com Tkinter para uso fácil e intuitivo"
-  },
-  {
-    icon: Youtube,
-    title: "YouTube para MP3",
-    description: "Converte vídeos do YouTube em arquivos MP3 de alta qualidade"
-  },
-  {
-    icon: Terminal,
-    title: "yt-dlp + FFmpeg",
-    description: "Tecnologias robustas para download e conversão de áudio"
-  },
-  {
-    icon: Palette,
-    title: "Dark Theme",
-    description: "Interface moderna com tema escuro confortável para os olhos"
-  },
-  {
-    icon: Loader2,
-    title: "Progress Indicators",
-    description: "Indicadores de progresso em tempo real durante o download"
-  },
-  {
-    icon: Headphones,
-    title: "Qualidade 192K",
-    description: "Conversão em alta qualidade de 192kbps"
-  }
-]
-
-const dependencies = [
-  { name: "yt-dlp", command: "pip install yt-dlp", description: "Downloader do YouTube" },
-  { name: "FFmpeg", command: "sudo apt install ffmpeg", description: "Conversor de áudio/vídeo" },
-  { name: "Python 3.x", command: "python --version", description: "Interpretador Python" }
-]
+type Status = "idle" | "downloading" | "converting" | "success" | "error"
 
 export default function Home() {
-  const [isCodeOpen, setIsCodeOpen] = useState(false)
-  const [isDownloading, setIsDownloading] = useState(false)
+  const [url, setUrl] = useState("")
+  const [cookies, setCookies] = useState("")
+  const [showCookiesHelp, setShowCookiesHelp] = useState(false)
+  const [status, setStatus] = useState<Status>("idle")
+  const [progress, setProgress] = useState(0)
+  const [message, setMessage] = useState("")
+  const [downloadUrl, setDownloadUrl] = useState("")
+  const [fileName, setFileName] = useState("")
+  const [needCookies, setNeedCookies] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
-  const handleDownload = async () => {
-    setIsDownloading(true)
-    // Simulate download
-    const link = document.createElement('a')
-    link.href = '/youtube_to_mp3_converter.py'
-    link.download = 'youtube_to_mp3_converter.py'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    setTimeout(() => setIsDownloading(false), 1500)
+  const isValidYouTubeUrl = (url: string) => {
+    const patterns = [
+      /^https?:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+/,
+      /^https?:\/\/(www\.)?youtu\.be\/[\w-]+/,
+      /^https?:\/\/(www\.)?youtube\.com\/shorts\/[\w-]+/,
+    ]
+    return patterns.some(p => p.test(url))
+  }
+
+  const handleConvert = async () => {
+    if (!url.trim()) {
+      setMessage("Por favor, insira uma URL do YouTube")
+      setStatus("error")
+      return
+    }
+
+    if (!isValidYouTubeUrl(url)) {
+      setMessage("URL inválida. Insira uma URL do YouTube válida")
+      setStatus("error")
+      return
+    }
+
+    setStatus("downloading")
+    setProgress(10)
+    setMessage("Conectando ao YouTube...")
+    setNeedCookies(false)
+
+    abortControllerRef.current = new AbortController()
+
+    try {
+      setProgress(20)
+      setMessage("Obtendo informações do vídeo...")
+
+      const response = await fetch("/api/convert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, cookies: cookies.trim() || null }),
+        signal: abortControllerRef.current.signal
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (data.needCookies) {
+          setNeedCookies(true)
+          setMessage(data.error)
+          setStatus("error")
+          setProgress(0)
+          return
+        }
+        throw new Error(data.error || "Erro ao processar o vídeo")
+      }
+
+      setProgress(100)
+      setStatus("success")
+      setMessage("Conversão concluída!")
+      setDownloadUrl(data.downloadUrl)
+      setFileName(data.fileName)
+
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === "AbortError") {
+        setStatus("idle")
+        setMessage("Download cancelado")
+        setProgress(0)
+        return
+      }
+      setStatus("error")
+      setMessage(error instanceof Error ? error.message : "Erro desconhecido")
+      setProgress(0)
+    }
+  }
+
+  const handleCancel = () => {
+    abortControllerRef.current?.abort()
+  }
+
+  const handleReset = () => {
+    setUrl("")
+    setStatus("idle")
+    setProgress(0)
+    setMessage("")
+    setDownloadUrl("")
+    setFileName("")
+    setNeedCookies(false)
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const getButtonContent = () => {
+    switch (status) {
+      case "downloading":
+      case "converting":
+        return (
+          <>
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            Cancelar
+          </>
+        )
+      case "success":
+        return (
+          <>
+            <CheckCircle2 className="w-5 h-5 mr-2" />
+            Nova Conversão
+          </>
+        )
+      case "error":
+        return (
+          <>
+            <AlertCircle className="w-5 h-5 mr-2" />
+            Tentar Novamente
+          </>
+        )
+      default:
+        return (
+          <>
+            <Download className="w-5 h-5 mr-2" />
+            Converter para MP3
+          </>
+        )
+    }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 text-white overflow-hidden relative">
-      {/* Animated background pattern */}
+      {/* Animated background */}
       <div className="absolute inset-0 opacity-20">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-900/20 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-900/30 via-transparent to-transparent" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-purple-900/20 via-transparent to-transparent" />
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-20 left-1/4 w-72 h-72 bg-emerald-500/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 right-1/4 w-72 h-72 bg-purple-500/15 rounded-full blur-3xl animate-pulse delay-1000" />
       </div>
 
-      {/* Grid pattern overlay */}
-      <div 
-        className="absolute inset-0 opacity-[0.02]"
-        style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)`,
-          backgroundSize: '50px 50px'
-        }}
-      />
+      <div className="relative z-10 container mx-auto px-4 py-8 md:py-12">
+        {/* Navigation */}
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex justify-between items-center mb-8">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600">
+              <Music className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">
+              YouTube to MP3
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <Link href="/desktop">
+              <Button variant="outline" size="sm" className="border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800/50">
+                <Monitor className="w-4 h-4 mr-2" />
+                Versão Desktop
+              </Button>
+            </Link>
+            <Link href="/ffmpeg">
+              <Button variant="outline" size="sm" className="border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800/50">
+                <HelpCircle className="w-4 h-4 mr-2" />
+                Instalar FFmpeg
+              </Button>
+            </Link>
+          </div>
+        </motion.div>
 
-      <div className="relative z-10 container mx-auto px-4 py-8 md:py-16">
-        {/* Header Section */}
-        <motion.header
-          initial={{ opacity: 0, y: -30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="text-center mb-12 md:mb-16"
-        >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="inline-flex items-center justify-center w-20 h-20 mb-6 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/25"
-          >
-            <Music className="w-10 h-10 text-white" />
+        {/* Header */}
+        <motion.header initial={{ opacity: 0, y: -30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
+          className="text-center mb-10">
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+            className="inline-flex items-center justify-center w-24 h-24 mb-6 rounded-3xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-2xl shadow-emerald-500/30">
+            <Youtube className="w-12 h-12 text-white" />
           </motion.div>
 
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="text-4xl md:text-6xl font-bold mb-4 tracking-tight"
-          >
+          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+            className="text-4xl md:text-6xl font-bold mb-4 tracking-tight">
             <span className="bg-gradient-to-r from-emerald-400 via-green-300 to-emerald-500 bg-clip-text text-transparent">
-              🎵 Conversor YouTube
+              Conversor YouTube
             </span>
             <br />
             <span className="bg-gradient-to-r from-purple-400 via-pink-300 to-purple-500 bg-clip-text text-transparent">
@@ -579,261 +228,267 @@ export default function Home() {
             </span>
           </motion.h1>
 
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5, duration: 0.6 }}
-            className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto"
-          >
-            Aplicação desktop Python com interface gráfica Tkinter para converter
-            vídeos do YouTube em arquivos MP3 de alta qualidade
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+            className="text-lg md:text-xl text-gray-400 max-w-xl mx-auto">
+            Converta vídeos do YouTube para MP3 diretamente no navegador
+            <br />
+            <span className="text-emerald-400 font-medium">Sem instalação • Rápido • Gratuito</span>
           </motion.p>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7 }}
-            className="flex flex-wrap justify-center gap-2 mt-6"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+            className="flex flex-wrap justify-center gap-2 mt-6">
             <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 bg-emerald-500/10">
-              Python 3.x
+              ✨ Versão Web
             </Badge>
             <Badge variant="outline" className="border-purple-500/50 text-purple-400 bg-purple-500/10">
-              Tkinter GUI
+              🎵 192kbps
             </Badge>
             <Badge variant="outline" className="border-green-500/50 text-green-400 bg-green-500/10">
-              yt-dlp
-            </Badge>
-            <Badge variant="outline" className="border-pink-500/50 text-pink-400 bg-pink-500/10">
-              FFmpeg
+              ⚡ Conversão Rápida
             </Badge>
           </motion.div>
         </motion.header>
 
-        {/* Main Content */}
-        <div className="grid lg:grid-cols-2 gap-8 mb-12">
-          {/* Features Card */}
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4, duration: 0.6 }}
-          >
-            <Card className="bg-gray-900/60 border-gray-800/50 backdrop-blur-xl h-full">
-              <CardHeader>
-                <CardTitle className="text-xl text-white flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                  Funcionalidades
-                </CardTitle>
-                <CardDescription className="text-gray-400">
-                  Recursos do conversor de YouTube para MP3
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4">
-                  {features.map((feature, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.5 + index * 0.1 }}
-                      className="flex items-start gap-3 p-3 rounded-lg bg-gray-800/30 hover:bg-gray-800/50 transition-colors border border-gray-700/30"
-                    >
-                      <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500/20 to-purple-500/20">
-                        <feature.icon className="w-5 h-5 text-emerald-400" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-white">{feature.title}</h4>
-                        <p className="text-sm text-gray-400">{feature.description}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+        {/* Main Converter Card */}
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+          className="max-w-2xl mx-auto mb-12">
+          <Card className="bg-gray-900/70 border-gray-800/50 backdrop-blur-xl shadow-2xl shadow-emerald-500/10">
+            <CardHeader>
+              <CardTitle className="text-2xl text-white flex items-center gap-2">
+                <Download className="w-6 h-6 text-emerald-400" />
+                Converter Vídeo
+              </CardTitle>
+              <CardDescription className="text-gray-400">
+                Cole o link do YouTube e clique em converter
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* URL Input */}
+              <div className="relative">
+                <Youtube className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <Input
+                  type="url"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && status !== "downloading" && handleConvert()}
+                  className="pl-12 h-14 text-lg bg-gray-800/50 border-gray-700 focus:border-emerald-500 focus:ring-emerald-500/20"
+                  disabled={status === "downloading"}
+                />
+              </div>
 
-          {/* Download Section */}
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4, duration: 0.6 }}
-          >
-            <Card className="bg-gray-900/60 border-gray-800/50 backdrop-blur-xl h-full">
-              <CardHeader>
-                <CardTitle className="text-xl text-white flex items-center gap-2">
-                  <Download className="w-5 h-5 text-purple-400" />
-                  Download & Instalação
-                </CardTitle>
-                <CardDescription className="text-gray-400">
-                  Baixe o script e instale as dependências
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Download Button */}
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    onClick={handleDownload}
-                    disabled={isDownloading}
-                    className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-lg shadow-emerald-500/25 transition-all"
+              {/* Cookies Section */}
+              <Collapsible open={showCookiesHelp || needCookies} onOpenChange={setShowCookiesHelp}>
+                <CollapsibleTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-between border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800/50"
                   >
-                    {isDownloading ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Baixando...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-5 h-5 mr-2" />
-                        Baixar Script Python
-                      </>
-                    )}
+                    <span className="flex items-center gap-2">
+                      <Cookie className="w-4 h-4 text-amber-400" />
+                      Cookies (opcional - para desbloquear)
+                    </span>
+                    {showCookiesHelp || needCookies ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </Button>
-                </motion.div>
-
-                {/* Dependencies */}
-                <div>
-                  <h4 className="font-medium text-white mb-3 flex items-center gap-2">
-                    <Terminal className="w-4 h-4 text-emerald-400" />
-                    Dependências
-                  </h4>
-                  <div className="space-y-3">
-                    {dependencies.map((dep, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.6 + index * 0.1 }}
-                        className="p-3 rounded-lg bg-gray-800/50 border border-gray-700/30"
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-3 space-y-3">
+                    {/* Instructions */}
+                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm">
+                      <p className="font-medium text-amber-300 mb-2 flex items-center gap-2">
+                        <Info className="w-4 h-4" />
+                        Como obter cookies:
+                      </p>
+                      <ol className="text-gray-300 space-y-1 text-xs list-decimal list-inside">
+                        <li>Instale a extensão <strong>"Get cookies.txt LOCALLY"</strong> no Chrome/Firefox</li>
+                        <li>Acesse youtube.com e faça login na sua conta</li>
+                        <li>Clique na extensão e em <strong>"Export"</strong></li>
+                        <li>Cole o conteúdo aqui</li>
+                      </ol>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="text-amber-400 p-0 h-auto mt-2 text-xs"
+                        onClick={() => window.open('https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc', '_blank')}
                       >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium text-white">{dep.name}</span>
-                          <Badge variant="outline" className="text-xs border-gray-600 text-gray-400">
-                            {dep.description}
-                          </Badge>
-                        </div>
-                        <code className="text-sm text-emerald-400 bg-gray-900/50 px-2 py-1 rounded block mt-2 font-mono">
-                          {dep.command}
-                        </code>
-                      </motion.div>
-                    ))}
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        Baixar extensão para Chrome
+                      </Button>
+                    </div>
+                    
+                    {/* Cookie input */}
+                    <Textarea
+                      placeholder="Cole os cookies do YouTube aqui..."
+                      value={cookies}
+                      onChange={(e) => setCookies(e.target.value)}
+                      className="bg-gray-800/50 border-gray-700 focus:border-amber-500 min-h-[100px] font-mono text-xs"
+                      disabled={status === "downloading"}
+                    />
                   </div>
-                </div>
+                </CollapsibleContent>
+              </Collapsible>
 
-                {/* Quick Start */}
-                <div className="p-4 rounded-lg bg-gradient-to-br from-emerald-500/10 to-purple-500/10 border border-emerald-500/20">
-                  <h4 className="font-medium text-white mb-2 flex items-center gap-2">
-                    <FileCode className="w-4 h-4 text-emerald-400" />
-                    Quick Start
-                  </h4>
-                  <code className="text-sm text-gray-300 block font-mono">
-                    python youtube_to_mp3_converter.py
-                  </code>
+              {/* Progress Bar */}
+              <AnimatePresence>
+                {(status === "downloading" || status === "converting") && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">{message}</span>
+                        <span className="text-emerald-400">{progress}%</span>
+                      </div>
+                      <Progress value={progress} className="h-2 bg-gray-800" />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Status Messages */}
+              <AnimatePresence>
+                {status === "success" && (
+                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                    className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                      <div className="flex-1">
+                        <p className="text-emerald-300 font-medium">{message}</p>
+                        <p className="text-sm text-gray-400">{fileName}</p>
+                      </div>
+                    </div>
+                    <a href={downloadUrl} download className="mt-4 w-full">
+                      <Button className="w-full bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600">
+                        <Download className="w-4 h-4 mr-2" />
+                        Baixar MP3
+                      </Button>
+                    </a>
+                  </motion.div>
+                )}
+
+                {status === "error" && (
+                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                    className="p-4 rounded-lg bg-red-500/10 border border-red-500/30">
+                    <div className="flex items-start gap-3">
+                      <XCircle className="w-6 h-6 text-red-400" />
+                      <p className="text-red-300 text-sm whitespace-pre-line flex-1">{message}</p>
+                    </div>
+                    {needCookies && (
+                      <div className="mt-4 flex gap-2">
+                        <Button
+                          onClick={() => setShowCookiesHelp(true)}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+                        >
+                          <Cookie className="w-4 h-4 mr-2" />
+                          Adicionar Cookies
+                        </Button>
+                        <Link href="/desktop" className="flex-1">
+                          <Button size="sm" className="w-full bg-emerald-500 hover:bg-emerald-600">
+                            <Monitor className="w-4 h-4 mr-2" />
+                            Usar Desktop
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Action Button */}
+              <Button
+                onClick={status === "downloading" ? handleCancel : status === "success" || status === "error" ? handleReset : handleConvert}
+                disabled={status === "converting"}
+                className={`w-full h-14 text-lg font-semibold transition-all ${
+                  status === "error" 
+                    ? "bg-red-500 hover:bg-red-600" 
+                    : status === "success"
+                    ? "bg-emerald-500 hover:bg-emerald-600"
+                    : "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
+                } shadow-lg shadow-emerald-500/25`}
+              >
+                {getButtonContent()}
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Features Grid */}
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+          className="max-w-4xl mx-auto mb-12">
+          <div className="grid md:grid-cols-3 gap-4">
+            {[
+              { icon: "⚡", title: "Super Rápido", desc: "Conversão em segundos" },
+              { icon: "🎵", title: "Alta Qualidade", desc: "192kbps de áudio" },
+              { icon: "🔒", title: "Seguro", desc: "Sem registro necessário" },
+              { icon: "📱", title: "Responsivo", desc: "Funciona em qualquer dispositivo" },
+              { icon: "♾️", title: "Ilimitado", desc: "Sem limite de conversões" },
+              { icon: "🌐", title: "Online", desc: "Direto no navegador" },
+            ].map((feature, index) => (
+              <Card key={index} className="bg-gray-900/40 border-gray-800/30 hover:border-emerald-500/30 transition-colors">
+                <CardContent className="pt-6 text-center">
+                  <div className="text-3xl mb-2">{feature.icon}</div>
+                  <h3 className="font-medium text-white">{feature.title}</h3>
+                  <p className="text-sm text-gray-400">{feature.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Help Banners */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
+          className="max-w-2xl mx-auto space-y-4">
+          
+          {/* FFmpeg Help */}
+          <Link href="/ffmpeg">
+            <Card className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-yellow-500/10 border-amber-500/30 hover:border-amber-500/50 transition-colors cursor-pointer group">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-full bg-amber-500/20">
+                      <HelpCircle className="w-6 h-6 text-amber-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white">Precisa de ajuda para instalar o FFmpeg?</h3>
+                      <p className="text-sm text-gray-400">Clique aqui para ver o guia completo de instalação</p>
+                    </div>
+                  </div>
+                  <ExternalLink className="w-5 h-5 text-amber-400 group-hover:translate-x-1 transition-transform" />
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
-        </div>
+          </Link>
 
-        {/* Code Preview */}
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.6 }}
-          className="mb-12"
-        >
-          <Collapsible
-            open={isCodeOpen}
-            onOpenChange={setIsCodeOpen}
-            className="w-full"
-          >
-            <Card className="bg-gray-900/60 border-gray-800/50 backdrop-blur-xl overflow-hidden">
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-gray-800/30 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-xl text-white flex items-center gap-2">
-                        <FileCode className="w-5 h-5 text-purple-400" />
-                        Visualizar Código
-                      </CardTitle>
-                      <CardDescription className="text-gray-400">
-                        Código fonte do conversor Python
-                      </CardDescription>
+          {/* Desktop Version */}
+          <Link href="/desktop">
+            <Card className="bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10 border-purple-500/30 hover:border-purple-500/50 transition-colors cursor-pointer group">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-full bg-purple-500/20">
+                      <Monitor className="w-6 h-6 text-purple-400" />
                     </div>
-                    <motion.div
-                      animate={{ rotate: isCodeOpen ? 180 : 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <ChevronDown className="w-6 h-6 text-gray-400" />
-                    </motion.div>
+                    <div>
+                      <h3 className="font-semibold text-white">Prefere uma versão desktop?</h3>
+                      <p className="text-sm text-gray-400">Baixe o script Python para usar offline</p>
+                    </div>
                   </div>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent className="p-0">
-                  <ScrollArea className="h-[500px] w-full">
-                    <SyntaxHighlighter
-                      language="python"
-                      style={vscDarkPlus}
-                      customStyle={{
-                        margin: 0,
-                        padding: '1.5rem',
-                        background: 'transparent',
-                        fontSize: '0.875rem',
-                        lineHeight: '1.6'
-                      }}
-                      showLineNumbers
-                      lineNumberStyle={{
-                        minWidth: '3em',
-                        paddingRight: '1em',
-                        color: '#4a5568',
-                        textAlign: 'right'
-                      }}
-                    >
-                      {pythonCode}
-                    </SyntaxHighlighter>
-                  </ScrollArea>
-                </CardContent>
-              </CollapsibleContent>
+                  <ExternalLink className="w-5 h-5 text-purple-400 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </CardContent>
             </Card>
-          </Collapsible>
+          </Link>
         </motion.div>
 
         {/* Footer */}
-        <motion.footer
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="text-center py-8 border-t border-gray-800/50"
-        >
-          <div className="max-w-2xl mx-auto">
-            <h3 className="text-lg font-semibold text-white mb-4">Como Usar</h3>
-            <div className="grid md:grid-cols-3 gap-4 text-sm">
-              <div className="p-4 rounded-lg bg-gray-800/30 border border-gray-700/30">
-                <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-emerald-400 font-bold">1</span>
-                </div>
-                <p className="text-gray-300">Instale as dependências necessárias</p>
-              </div>
-              <div className="p-4 rounded-lg bg-gray-800/30 border border-gray-700/30">
-                <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-purple-400 font-bold">2</span>
-                </div>
-                <p className="text-gray-300">Execute o script Python</p>
-              </div>
-              <div className="p-4 rounded-lg bg-gray-800/30 border border-gray-700/30">
-                <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-green-400 font-bold">3</span>
-                </div>
-                <p className="text-gray-300">Cole a URL e baixe o MP3</p>
-              </div>
-            </div>
-            <p className="mt-6 text-gray-500 text-sm">
-              Desenvolvido com Python • Tkinter • yt-dlp • FFmpeg
-            </p>
-          </div>
+        <motion.footer initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
+          className="text-center py-8 mt-12 border-t border-gray-800/50">
+          <p className="text-gray-500 text-sm">
+            Converta vídeos do YouTube para MP3 de forma rápida e gratuita
+          </p>
+          <p className="text-gray-600 text-xs mt-2">
+            Use apenas para conteúdo que você tem permissão para baixar
+          </p>
         </motion.footer>
       </div>
     </div>
