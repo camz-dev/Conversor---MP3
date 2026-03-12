@@ -58,3 +58,5 @@ server.log
 *.db
 *.db-journal
 prisma/*.db
+# Auto push script (contains token)
+auto-push.sh
