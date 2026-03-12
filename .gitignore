@@ -49,3 +49,12 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Downloads and cookies (generated files)
+/public/downloads/
+/tmp/
+
+# Database
+*.db
+*.db-journal
+prisma/*.db
