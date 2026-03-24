@@ -8,6 +8,12 @@
     Aplicativo desktop para converter vídeos e playlists do YouTube em MP3.
     Desenvolvido com Python e Tkinter.
 
+    SUPORTA:
+    --------
+    • YouTube (youtube.com, youtu.be)
+    • YouTube Music (music.youtube.com)
+    • Vídeos individuais e playlists
+
     DEPENDÊNCIAS NECESSÁRIAS:
     -------------------------
     1. Python 3.x instalado (https://www.python.org/downloads/)
@@ -27,7 +33,7 @@
     FUNCIONALIDADES:
     ----------------
     - Converter vídeos individuais para MP3
-    - Baixar playlists inteiras do YouTube
+    - Baixar playlists inteiras do YouTube e YouTube Music
     - Visualizar músicas baixadas em tempo real
     - Progresso detalhado de cada música na playlist
     - Escolher pasta de destino
@@ -35,7 +41,7 @@
     - Tratamento de erros
 
     AUTOR: Gerado automaticamente
-    VERSÃO: 3.0.0
+    VERSÃO: 3.1.0
 ================================================================================
 """
 
@@ -64,6 +70,7 @@ class YouTubeToMP3Converter:
         self.downloaded_songs = []  # Lista de músicas baixadas
         self.total_playlist_items = 0
         self.current_item = 0
+        self.url_type = "youtube"  # "youtube" ou "youtube_music"
         
         # Configuração da janela
         self.setup_window()
@@ -73,7 +80,7 @@ class YouTubeToMP3Converter:
         
     def setup_window(self):
         """Configura as propriedades da janela principal."""
-        self.root.title("🎵 Conversor YouTube para MP3")
+        self.root.title("🎵 Conversor YouTube / YouTube Music para MP3")
         self.root.geometry("700x650")
         self.root.resizable(True, True)
         self.root.minsize(600, 550)
@@ -94,11 +101,14 @@ class YouTubeToMP3Converter:
         self.button_hover = "#218838"
         self.button_playlist_bg = "#9b59b6"
         self.button_playlist_hover = "#8e44ad"
+        self.button_music_bg = "#e91e63"
+        self.button_music_hover = "#c2185b"
         self.status_fg = "#888888"
         self.accent_color = "#ff6b6b"
         self.list_bg = "#252525"
         self.success_color = "#28a745"
         self.downloading_color = "#ffc107"
+        self.music_color = "#e91e63"
         
         self.root.configure(bg=self.bg_color)
         
@@ -112,7 +122,7 @@ class YouTubeToMP3Converter:
         # Título
         title_label = tk.Label(
             main_frame,
-            text="🎵 Conversor YouTube para MP3",
+            text="🎵 Conversor YouTube / YouTube Music",
             font=("Segoe UI", 18, "bold"),
             bg=self.bg_color,
             fg=self.fg_color
@@ -136,7 +146,7 @@ class YouTubeToMP3Converter:
         # Label para URL
         url_label = tk.Label(
             input_frame,
-            text="Cole a URL do YouTube (vídeo ou playlist):",
+            text="Cole a URL do YouTube, YouTube Music (vídeo ou playlist):",
             font=("Segoe UI", 10),
             bg=self.bg_color,
             fg=self.fg_color
@@ -157,7 +167,17 @@ class YouTubeToMP3Converter:
         )
         self.url_entry.pack(fill=tk.X, pady=(5, 5), ipady=8)
         self.url_entry.bind('<Return>', lambda e: self.iniciar_download())
-        self.url_entry.bind('<KeyRelease>', self.detectar_playlist)
+        self.url_entry.bind('<KeyRelease>', self.detectar_tipo_url)
+        
+        # Label de tipo detectado
+        self.type_label = tk.Label(
+            input_frame,
+            text="",
+            font=("Segoe UI", 9),
+            bg=self.bg_color,
+            fg=self.status_fg
+        )
+        self.type_label.pack(anchor=tk.W, pady=(2, 5))
         
         # Frame para botões de modo
         mode_frame = tk.Frame(main_frame, bg=self.bg_color)
@@ -339,32 +359,87 @@ class YouTubeToMP3Converter:
         
         self.last_folder = None
         
-    def detectar_playlist(self, event=None):
-        """Detecta automaticamente se a URL é uma playlist."""
+    def detectar_tipo_url(self, event=None):
+        """Detecta automaticamente o tipo de URL e se é playlist."""
         url = self.url_entry.get().strip()
-        if "playlist?list=" in url or ("list=" in url and "watch" not in url):
-            self.mode_var.set("playlist")
-            self.alterar_modo()
+        
+        # Detectar YouTube Music
+        if "music.youtube.com" in url:
+            self.url_type = "youtube_music"
+            
+            # Detectar playlist do YouTube Music
+            if "playlist?list=" in url or "/browse/VL" in url or ("list=" in url):
+                self.mode_var.set("playlist")
+                self.type_label.configure(
+                    text="🎵 YouTube Music - Playlist detectada!",
+                    fg=self.music_color
+                )
+            else:
+                self.mode_var.set("video")
+                self.type_label.configure(
+                    text="🎵 YouTube Music - Vídeo detectado",
+                    fg=self.music_color
+                )
+                
+        # Detectar YouTube normal
+        elif "youtube.com" in url or "youtu.be" in url:
+            self.url_type = "youtube"
+            
+            # Detectar playlist do YouTube
+            if "playlist?list=" in url or ("list=" in url and "watch" not in url):
+                self.mode_var.set("playlist")
+                self.type_label.configure(
+                    text="📺 YouTube - Playlist detectada!",
+                    fg=self.button_bg
+                )
+            else:
+                self.mode_var.set("video")
+                self.type_label.configure(
+                    text="📺 YouTube - Vídeo detectado",
+                    fg=self.button_bg
+                )
         else:
-            self.mode_var.set("video")
-            self.alterar_modo()
+            self.url_type = "youtube"
+            self.type_label.configure(text="", fg=self.status_fg)
+            
+        self.alterar_modo()
             
     def alterar_modo(self):
         """Altera a aparência do botão baseado no modo selecionado."""
         if self.mode_var.get() == "playlist":
-            self.download_btn.configure(
-                text="📋 Baixar Playlist Inteira",
-                bg=self.button_playlist_bg
-            )
-            self.button_current_bg = self.button_playlist_bg
-            self.button_current_hover = self.button_playlist_hover
+            if self.url_type == "youtube_music":
+                # Playlist do YouTube Music - rosa
+                self.download_btn.configure(
+                    text="🎵 Baixar Playlist YouTube Music",
+                    bg=self.button_music_bg
+                )
+                self.button_current_bg = self.button_music_bg
+                self.button_current_hover = self.button_music_hover
+            else:
+                # Playlist do YouTube - roxo
+                self.download_btn.configure(
+                    text="📋 Baixar Playlist Inteira",
+                    bg=self.button_playlist_bg
+                )
+                self.button_current_bg = self.button_playlist_bg
+                self.button_current_hover = self.button_playlist_hover
         else:
-            self.download_btn.configure(
-                text="⬇️ Baixar MP3",
-                bg=self.button_bg
-            )
-            self.button_current_bg = self.button_bg
-            self.button_current_hover = self.button_hover
+            if self.url_type == "youtube_music":
+                # Vídeo do YouTube Music - rosa
+                self.download_btn.configure(
+                    text="🎵 Baixar do YouTube Music",
+                    bg=self.button_music_bg
+                )
+                self.button_current_bg = self.button_music_bg
+                self.button_current_hover = self.button_music_hover
+            else:
+                # Vídeo do YouTube - verde
+                self.download_btn.configure(
+                    text="⬇️ Baixar MP3",
+                    bg=self.button_bg
+                )
+                self.button_current_bg = self.button_bg
+                self.button_current_hover = self.button_hover
             
     def on_button_hover(self, event):
         """Efeito hover no botão."""
@@ -440,13 +515,19 @@ class YouTubeToMP3Converter:
             messagebox.showinfo("Informação", "Nenhuma pasta de download disponível.")
         
     def validar_url_youtube(self, url):
-        """Valida se a URL é uma URL válida do YouTube."""
+        """Valida se a URL é uma URL válida do YouTube ou YouTube Music."""
         padroes = [
+            # YouTube normal
             r'^https?://(www\.)?youtube\.com/watch\?v=[\w-]+',
             r'^https?://(www\.)?youtu\.be/[\w-]+',
             r'^https?://(www\.)?youtube\.com/shorts/[\w-]+',
             r'^https?://(m\.)?youtube\.com/watch\?v=[\w-]+',
             r'^https?://(www\.)?youtube\.com/playlist\?list=[\w-]+',
+            # YouTube Music
+            r'^https?://music\.youtube\.com/watch\?v=[\w-]+',
+            r'^https?://music\.youtube\.com/playlist\?list=[\w-]+',
+            r'^https?://music\.youtube\.com/browse/[\w-]+',
+            r'^https?://music\.youtube\.com/[\w\?\=\&]+',
         ]
         
         for padrao in padroes:
@@ -486,7 +567,7 @@ class YouTubeToMP3Converter:
         
         # Validação 1: URL vazia
         if not url:
-            messagebox.showerror("Erro", "Por favor, insira uma URL do YouTube.")
+            messagebox.showerror("Erro", "Por favor, insira uma URL do YouTube ou YouTube Music.")
             self.url_entry.focus_set()
             return
             
@@ -494,7 +575,7 @@ class YouTubeToMP3Converter:
         if not self.validar_url_youtube(url):
             resposta = messagebox.askyesno(
                 "URL Suspeita",
-                "A URL não parece ser um link válido do YouTube.\n\n"
+                "A URL não parece ser um link válido do YouTube ou YouTube Music.\n\n"
                 "Deseja tentar mesmo assim?"
             )
             if not resposta:
@@ -562,7 +643,8 @@ class YouTubeToMP3Converter:
             resultado = subprocess.run(
                 comando,
                 capture_output=True,
-                text=True
+                text=True,
+                timeout=60
             )
             
             if resultado.returncode == 0:
@@ -576,32 +658,36 @@ class YouTubeToMP3Converter:
     def thread_download(self, url, pasta_destino):
         """Thread separada para executar o download sem travar a interface."""
         try:
-            self.atualizar_status("Analisando URL...", "#ffff00")
-            self.atualizar_progresso(5, "Conectando ao YouTube...")
+            source_name = "YouTube Music" if self.url_type == "youtube_music" else "YouTube"
+            self.atualizar_status(f"Analisando URL ({source_name})...", "#ffff00")
+            self.atualizar_progresso(5, f"Conectando ao {source_name}...")
             
             # Template de nome do arquivo
             if self.is_playlist:
                 # Obter quantidade de itens na playlist
-                self.atualizar_status("Obtendo informações da playlist...", "#ffff00")
-                self.atualizar_progresso(10, "Contando vídeos da playlist...")
+                self.atualizar_status(f"Obtendo informações da playlist ({source_name})...", "#ffff00")
+                self.atualizar_progresso(10, "Contando músicas da playlist...")
                 
                 self.total_playlist_items = self.obter_info_playlist(url)
                 
                 if self.total_playlist_items > 0:
-                    self.atualizar_status(f"Playlist detectada: {self.total_playlist_items} vídeos", "#00ffff")
-                    self.atualizar_progresso(15, f"Preparando download de {self.total_playlist_items} vídeos...")
+                    self.atualizar_status(f"Playlist detectada: {self.total_playlist_items} músicas", "#00ffff")
+                    self.atualizar_progresso(15, f"Preparando download de {self.total_playlist_items} músicas...")
                 else:
                     self.atualizar_status("Playlist detectada", "#00ffff")
                     self.atualizar_progresso(15, "Preparando download...")
                 
                 # Para playlists, criar subpasta e numerar arquivos
-                playlist_folder = os.path.join(pasta_destino, "playlist_mp3")
+                if self.url_type == "youtube_music":
+                    playlist_folder = os.path.join(pasta_destino, "youtube_music_playlist")
+                else:
+                    playlist_folder = os.path.join(pasta_destino, "playlist_mp3")
                 os.makedirs(playlist_folder, exist_ok=True)
                 template_saida = os.path.join(playlist_folder, "%(playlist_index)02d - %(title)s.%(ext)s")
                 self.last_folder = playlist_folder
             else:
                 self.total_playlist_items = 1
-                self.atualizar_status("Vídeo detectado", "#00ffff")
+                self.atualizar_status(f"Vídeo detectado ({source_name})", "#00ffff")
                 self.atualizar_progresso(15, "Preparando download...")
                 template_saida = os.path.join(pasta_destino, "%(title)s.%(ext)s")
                 self.last_folder = pasta_destino
@@ -628,7 +714,7 @@ class YouTubeToMP3Converter:
             comando.append(url)
             
             # Executa o comando
-            self.atualizar_status("Iniciando downloads...", "#00ffff")
+            self.atualizar_status(f"Iniciando downloads do {source_name}...", "#00ffff")
             self.atualizar_progresso(20, "Conectando...")
             
             processo = subprocess.Popen(
@@ -679,7 +765,7 @@ class YouTubeToMP3Converter:
                             status_text = f"Baixando {self.current_item}/{self.total_playlist_items}: {titulo[:40]}..."
                             self.atualizar_progresso(total_progress, status_text)
                             self.atualizar_status(
-                                f"Playlist: {self.current_item}/{self.total_playlist_items} músicas",
+                                f"{source_name}: {self.current_item}/{self.total_playlist_items} músicas",
                                 "#00ffff"
                             )
                         else:
@@ -717,7 +803,7 @@ class YouTubeToMP3Converter:
                     
                     self.root.after(0, lambda: messagebox.showinfo(
                         "Sucesso!",
-                        f"✅ Playlist baixada com sucesso!\n\n"
+                        f"✅ Playlist do {source_name} baixada com sucesso!\n\n"
                         f"📁 {quantidade} arquivos salvos em:\n{pasta_final}"
                     ))
                 else:
@@ -735,7 +821,7 @@ class YouTubeToMP3Converter:
                         
                         self.root.after(0, lambda: messagebox.showinfo(
                             "Sucesso!",
-                            f"✅ Download concluído com sucesso!\n\n"
+                            f"✅ Download do {source_name} concluído!\n\n"
                             f"Arquivo salvo em:\n{arquivo_mais_recente}"
                         ))
                     else:
@@ -789,17 +875,31 @@ class YouTubeToMP3Converter:
     def restaurar_botao(self):
         """Restaura o botão para o estado normal."""
         if self.is_playlist:
-            self.download_btn.configure(
-                text="📋 Baixar Playlist Inteira",
-                bg=self.button_playlist_bg,
-                state=tk.NORMAL
-            )
+            if self.url_type == "youtube_music":
+                self.download_btn.configure(
+                    text="🎵 Baixar Playlist YouTube Music",
+                    bg=self.button_music_bg,
+                    state=tk.NORMAL
+                )
+            else:
+                self.download_btn.configure(
+                    text="📋 Baixar Playlist Inteira",
+                    bg=self.button_playlist_bg,
+                    state=tk.NORMAL
+                )
         else:
-            self.download_btn.configure(
-                text="⬇️ Baixar MP3",
-                bg=self.button_bg,
-                state=tk.NORMAL
-            )
+            if self.url_type == "youtube_music":
+                self.download_btn.configure(
+                    text="🎵 Baixar do YouTube Music",
+                    bg=self.button_music_bg,
+                    state=tk.NORMAL
+                )
+            else:
+                self.download_btn.configure(
+                    text="⬇️ Baixar MP3",
+                    bg=self.button_bg,
+                    state=tk.NORMAL
+                )
 
 
 def main():
