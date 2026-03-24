@@ -41,7 +41,7 @@
     - Tratamento de erros
 
     AUTOR: Gerado automaticamente
-    VERSÃO: 3.1.0
+    VERSÃO: 3.2.0
 ================================================================================
 """
 
@@ -54,6 +54,7 @@ import shutil
 import re
 import sys
 import json
+import time
 
 
 class YouTubeToMP3Converter:
@@ -475,6 +476,8 @@ class YouTubeToMP3Converter:
             self.songs_listbox.itemconfig(tk.END, fg=self.success_color)
         elif status == "⏳":
             self.songs_listbox.itemconfig(tk.END, fg=self.downloading_color)
+        elif status == "❌":
+            self.songs_listbox.itemconfig(tk.END, fg=self.accent_color)
             
         # Scroll automático para o último item
         self.songs_listbox.see(tk.END)
@@ -493,6 +496,8 @@ class YouTubeToMP3Converter:
             self.songs_listbox.insert(ultimo_idx, novo_texto)
             if novo_status == "✅":
                 self.songs_listbox.itemconfig(ultimo_idx, fg=self.success_color)
+            elif novo_status == "❌":
+                self.songs_listbox.itemconfig(ultimo_idx, fg=self.accent_color)
             self.songs_listbox.see(tk.END)
             self.root.update_idletasks()
             
@@ -629,8 +634,8 @@ class YouTubeToMP3Converter:
         )
         thread.start()
         
-    def obter_info_playlist(self, url):
-        """Obtém informações sobre a playlist (quantidade de vídeos)."""
+    def obter_videos_playlist(self, url):
+        """Obtém a lista de vídeos da playlist com ID e título."""
         try:
             comando = [
                 'yt-dlp',
@@ -644,16 +649,26 @@ class YouTubeToMP3Converter:
                 comando,
                 capture_output=True,
                 text=True,
-                timeout=60
+                timeout=120
             )
             
             if resultado.returncode == 0:
-                # Conta as linhas de JSON (cada linha é um vídeo)
-                items = [line for line in resultado.stdout.strip().split('\n') if line.strip()]
-                return len(items)
-        except:
-            pass
-        return 0
+                videos = []
+                for line in resultado.stdout.strip().split('\n'):
+                    if line.strip():
+                        try:
+                            data = json.loads(line)
+                            videos.append({
+                                'id': data.get('id', ''),
+                                'title': data.get('title', 'Título desconhecido'),
+                                'url': f"https://www.youtube.com/watch?v={data.get('id', '')}"
+                            })
+                        except json.JSONDecodeError:
+                            continue
+                return videos
+        except Exception as e:
+            print(f"Erro ao obter playlist: {e}")
+        return []
         
     def thread_download(self, url, pasta_destino):
         """Thread separada para executar o download sem travar a interface."""
@@ -664,18 +679,19 @@ class YouTubeToMP3Converter:
             
             # Template de nome do arquivo
             if self.is_playlist:
-                # Obter quantidade de itens na playlist
+                # Obter lista de vídeos da playlist
                 self.atualizar_status(f"Obtendo informações da playlist ({source_name})...", "#ffff00")
-                self.atualizar_progresso(10, "Contando músicas da playlist...")
+                self.atualizar_progresso(10, "Analisando músicas da playlist...")
                 
-                self.total_playlist_items = self.obter_info_playlist(url)
+                videos = self.obter_videos_playlist(url)
+                self.total_playlist_items = len(videos)
                 
                 if self.total_playlist_items > 0:
-                    self.atualizar_status(f"Playlist detectada: {self.total_playlist_items} músicas", "#00ffff")
+                    self.atualizar_status(f"Playlist: {self.total_playlist_items} músicas encontradas", "#00ffff")
                     self.atualizar_progresso(15, f"Preparando download de {self.total_playlist_items} músicas...")
                 else:
-                    self.atualizar_status("Playlist detectada", "#00ffff")
-                    self.atualizar_progresso(15, "Preparando download...")
+                    self.atualizar_status("Nenhuma música encontrada na playlist", self.accent_color)
+                    raise Exception("Não foi possível obter as músicas da playlist")
                 
                 # Para playlists, criar subpasta e numerar arquivos
                 if self.url_type == "youtube_music":
@@ -683,130 +699,137 @@ class YouTubeToMP3Converter:
                 else:
                     playlist_folder = os.path.join(pasta_destino, "playlist_mp3")
                 os.makedirs(playlist_folder, exist_ok=True)
-                template_saida = os.path.join(playlist_folder, "%(playlist_index)02d - %(title)s.%(ext)s")
                 self.last_folder = playlist_folder
+                
+                # Baixar cada vídeo individualmente
+                sucessos = 0
+                erros = 0
+                
+                for i, video in enumerate(videos, 1):
+                    if not self.is_downloading:
+                        self.atualizar_status("Download cancelado", self.accent_color)
+                        break
+                        
+                    self.current_item = i
+                    titulo = video['title'][:50]
+                    video_url = video['url']
+                    
+                    # Mostrar música sendo baixada
+                    self.adicionar_musica_lista(video['title'][:60], "⏳")
+                    
+                    # Calcular progresso
+                    progress_base = 15
+                    progress_range = 80
+                    total_progress = progress_base + ((i / self.total_playlist_items) * progress_range)
+                    
+                    status_text = f"Baixando {i}/{self.total_playlist_items}: {titulo}..."
+                    self.atualizar_progresso(total_progress, status_text)
+                    self.atualizar_status(
+                        f"{source_name}: {i}/{self.total_playlist_items} músicas",
+                        "#00ffff"
+                    )
+                    
+                    # Template de saída com índice
+                    template_saida = os.path.join(playlist_folder, f"{i:02d} - %(title)s.%(ext)s")
+                    
+                    # Comando para baixar vídeo individual
+                    comando = [
+                        'yt-dlp',
+                        '--extract-audio',
+                        '--audio-format', 'mp3',
+                        '--audio-quality', '192K',
+                        '--no-warnings',
+                        '--restrict-filenames',
+                        '-o', template_saida,
+                        '--no-playlist',
+                        video_url
+                    ]
+                    
+                    try:
+                        resultado = subprocess.run(
+                            comando,
+                            capture_output=True,
+                            text=True,
+                            timeout=300  # 5 minutos por música
+                        )
+                        
+                        if resultado.returncode == 0:
+                            # Sucesso - atualizar status
+                            self.atualizar_ultimo_item("✅")
+                            sucessos += 1
+                        else:
+                            # Erro no download
+                            self.atualizar_ultimo_item("❌")
+                            erros += 1
+                            print(f"Erro ao baixar {titulo}: {resultado.stderr[:200]}")
+                            
+                    except subprocess.TimeoutExpired:
+                        self.atualizar_ultimo_item("❌")
+                        erros += 1
+                        print(f"Timeout ao baixar {titulo}")
+                    except Exception as e:
+                        self.atualizar_ultimo_item("❌")
+                        erros += 1
+                        print(f"Erro ao baixar {titulo}: {e}")
+                
+                # Finalizar
+                self.atualizar_progresso(100, "Concluído!")
+                
+                # Contar arquivos baixados
+                arquivos = [f for f in os.listdir(playlist_folder) if f.endswith('.mp3')]
+                quantidade = len(arquivos)
+                
+                if quantidade > 0:
+                    self.atualizar_status(f"✅ Download concluído! {quantidade} música(s) salva(s)", "#00ff00")
+                    self.root.after(0, lambda: messagebox.showinfo(
+                        "Sucesso!",
+                        f"✅ Playlist do {source_name} baixada!\n\n"
+                        f"📁 {quantidade} arquivos salvos em:\n{playlist_folder}\n\n"
+                        f"✅ Sucessos: {sucessos}\n❌ Erros: {erros}"
+                    ))
+                else:
+                    self.atualizar_status("❌ Nenhum arquivo foi salvo", self.accent_color)
+                    self.root.after(0, lambda: messagebox.showerror(
+                        "Erro",
+                        f"❌ Não foi possível baixar as músicas.\n\n"
+                        f"Tente novamente ou verifique sua conexão."
+                    ))
+                    
             else:
+                # Download de vídeo único
                 self.total_playlist_items = 1
                 self.atualizar_status(f"Vídeo detectado ({source_name})", "#00ffff")
                 self.atualizar_progresso(15, "Preparando download...")
+                
                 template_saida = os.path.join(pasta_destino, "%(title)s.%(ext)s")
                 self.last_folder = pasta_destino
-            
-            # Comando yt-dlp para baixar e converter para MP3
-            comando = [
-                'yt-dlp',
-                '--extract-audio',
-                '--audio-format', 'mp3',
-                '--audio-quality', '192K',
-                '--no-warnings',
-                '--restrict-filenames',
-                '-o', template_saida,
-                '--print', '%(playlist_index)s|%(title)s',
-                '--newline',
-            ]
-            
-            # Adicionar flag de playlist ou não
-            if self.is_playlist:
-                comando.append('--yes-playlist')
-            else:
-                comando.append('--no-playlist')
                 
-            comando.append(url)
-            
-            # Executa o comando
-            self.atualizar_status(f"Iniciando downloads do {source_name}...", "#00ffff")
-            self.atualizar_progresso(20, "Conectando...")
-            
-            processo = subprocess.Popen(
-                comando,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                universal_newlines=True
-            )
-            
-            # Ler output em tempo real
-            while True:
-                line = processo.stdout.readline()
+                # Adicionar à lista
+                self.adicionar_musica_lista("Baixando vídeo...", "⏳")
                 
-                if not line:
-                    if processo.poll() is not None:
-                        break
-                    continue
-                    
-                line = line.strip()
-                if not line:
-                    continue
-                    
-                # Processar linha de output
-                if '|' in line:
-                    # Formato: index|title
-                    parts = line.split('|', 1)
-                    if len(parts) == 2:
-                        index_str, titulo = parts
-                        try:
-                            index = int(index_str) if index_str else self.current_item + 1
-                        except:
-                            index = self.current_item + 1
-                        
-                        self.current_item = index
-                        
-                        # Calcular progresso
-                        if self.total_playlist_items > 0:
-                            progress_base = 20
-                            progress_range = 75
-                            item_progress = (self.current_item / self.total_playlist_items) * progress_range
-                            total_progress = progress_base + item_progress
-                            
-                            # Mostrar música sendo baixada
-                            self.adicionar_musica_lista(titulo[:60], "⏳")
-                            
-                            status_text = f"Baixando {self.current_item}/{self.total_playlist_items}: {titulo[:40]}..."
-                            self.atualizar_progresso(total_progress, status_text)
-                            self.atualizar_status(
-                                f"{source_name}: {self.current_item}/{self.total_playlist_items} músicas",
-                                "#00ffff"
-                            )
-                        else:
-                            self.adicionar_musica_lista(line[:60], "⏳")
-                            self.atualizar_progresso(50, f"Baixando: {line[:50]}...")
-                else:
-                    # Linha sem formato específico
-                    titulo = line[:60]
-                    if titulo and not line.startswith('['):
-                        self.adicionar_musica_lista(titulo, "⏳")
-                        self.atualizar_progresso(50, f"Baixando: {titulo}...")
-            
-            # Aguardar término do processo
-            _, stderr = processo.communicate()
-            
-            if processo.returncode == 0:
-                # Sucesso - atualizar todos os itens para concluído
-                for i in range(self.songs_listbox.size()):
-                    item_text = self.songs_listbox.get(i)
-                    if item_text.startswith("⏳"):
-                        novo_texto = item_text.replace("⏳", "✅", 1)
-                        self.songs_listbox.delete(i)
-                        self.songs_listbox.insert(i, novo_texto)
-                        self.songs_listbox.itemconfig(i, fg=self.success_color)
+                # Comando yt-dlp para baixar
+                comando = [
+                    'yt-dlp',
+                    '--extract-audio',
+                    '--audio-format', 'mp3',
+                    '--audio-quality', '192K',
+                    '--no-warnings',
+                    '--restrict-filenames',
+                    '-o', template_saida,
+                    '--no-playlist',
+                    url
+                ]
                 
-                # Sucesso
-                self.atualizar_progresso(100, "Concluído!")
-                self.atualizar_status(f"✅ Download concluído! {self.current_item} música(s)", "#00ff00")
+                self.atualizar_progresso(50, "Baixando e convertendo...")
                 
-                # Contar arquivos baixados
-                if self.is_playlist:
-                    pasta_final = self.last_folder
-                    arquivos = [f for f in os.listdir(pasta_final) if f.endswith('.mp3')]
-                    quantidade = len(arquivos)
-                    
-                    self.root.after(0, lambda: messagebox.showinfo(
-                        "Sucesso!",
-                        f"✅ Playlist do {source_name} baixada com sucesso!\n\n"
-                        f"📁 {quantidade} arquivos salvos em:\n{pasta_final}"
-                    ))
-                else:
+                resultado = subprocess.run(
+                    comando,
+                    capture_output=True,
+                    text=True,
+                    timeout=600
+                )
+                
+                if resultado.returncode == 0:
                     # Procura o arquivo MP3 criado
                     arquivos_mp3 = [
                         f for f in os.listdir(pasta_destino)
@@ -818,6 +841,16 @@ class YouTubeToMP3Converter:
                             [os.path.join(pasta_destino, f) for f in arquivos_mp3],
                             key=os.path.getctime
                         )
+                        nome_arquivo = os.path.basename(arquivo_mais_recente)
+                        
+                        # Atualizar lista com nome real
+                        self.songs_listbox.delete(0)
+                        self.downloaded_songs = [nome_arquivo.replace('.mp3', '')]
+                        self.songs_listbox.insert(0, f"✅ {nome_arquivo.replace('.mp3', '')}")
+                        self.songs_listbox.itemconfig(0, fg=self.success_color)
+                        
+                        self.atualizar_progresso(100, "Concluído!")
+                        self.atualizar_status(f"✅ Download concluído!", "#00ff00")
                         
                         self.root.after(0, lambda: messagebox.showinfo(
                             "Sucesso!",
@@ -826,17 +859,17 @@ class YouTubeToMP3Converter:
                         ))
                     else:
                         raise Exception("Arquivo MP3 não encontrado após conversão")
-                    
-            else:
-                # Erro no download
-                erro_msg = stderr if stderr else "Erro desconhecido"
-                raise Exception(f"Erro no yt-dlp: {erro_msg}")
+                else:
+                    raise Exception(f"Erro no yt-dlp: {resultado.stderr[:500]}")
                 
+        except subprocess.TimeoutExpired:
+            self.root.after(0, lambda: self.tratar_erro(
+                "Timeout: O download demorou muito tempo.\nTente novamente."
+            ))
         except subprocess.CalledProcessError as e:
             self.root.after(0, lambda: self.tratar_erro(
                 f"Erro ao executar yt-dlp:\n{str(e)}"
             ))
-            
         except Exception as e:
             self.root.after(0, lambda: self.tratar_erro(str(e)))
             
@@ -869,6 +902,8 @@ class YouTubeToMP3Converter:
             mensagem = "Vídeo não disponível. Pode ter sido removido ou está bloqueado."
         elif "sign in" in mensagem.lower():
             mensagem = "Este vídeo requer login e não pode ser baixado."
+        elif "Timeout" in mensagem:
+            mensagem = "O download demorou muito. Tente novamente."
             
         messagebox.showerror("Erro no Download", f"❌ {mensagem}")
         
