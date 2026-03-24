@@ -91,7 +91,8 @@ const dependencies = [
 
 const features = [
   { icon: Monitor, title: "Desktop App", description: "Interface gráfica Tkinter" },
-  { icon: Terminal, title: "yt-dlp + FFmpeg", description: "Download e conversão" }
+  { icon: Terminal, title: "yt-dlp + FFmpeg", description: "Download e conversão" },
+  { icon: Globe, title: "YouTube Music", description: "Playlists suportadas" }
 ]
 
 export default function DesktopPage() {
@@ -139,7 +140,7 @@ export default function DesktopPage() {
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             Versão Desktop
           </h1>
-          <p className="text-gray-400">Baixe o script Python para rodar offline</p>
+          <p className="text-gray-400">YouTube e YouTube Music • Playlists e Vídeos</p>
         </motion.header>
 
         {/* Main Content */}
@@ -197,9 +198,9 @@ export default function DesktopPage() {
                   "✅ Funciona 100% sem bloqueios",
                   "✅ Download rápido e estável",
                   "✅ Interface gráfica fácil",
-                  "✅ Funciona offline",
-                  "✅ Salva MP3 direto na pasta",
-                  "✅ Qualidade 192kbps"
+                  "✅ Suporta YouTube Music!",
+                  "✅ Baixe playlists inteiras",
+                  "✅ Qualidade 192kbps MP3"
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-2 p-2 rounded bg-gray-800/30">
                     <span className="text-sm text-gray-300">{item}</span>
@@ -240,7 +241,7 @@ export default function DesktopPage() {
 
         {/* Footer */}
         <motion.footer initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-6 border-t border-gray-800/50">
-          <p className="text-gray-500 text-sm">Python • Tkinter • yt-dlp • FFmpeg</p>
+          <p className="text-gray-500 text-sm">Python • Tkinter • yt-dlp • FFmpeg • YouTube Music</p>
         </motion.footer>
       </div>
     </div>
